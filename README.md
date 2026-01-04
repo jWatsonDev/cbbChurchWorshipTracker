@@ -27,44 +27,272 @@ A full-stack application for tracking worship songs used at CBB Church, featurin
 - Docker & Docker Compose
 - Azure CLI (for deployment)
 
-### Local Development
+## Local Development
 
-1. **Set up environment variables**
-   - Copy `api/.env.local.example` to `api/.env.local`
-   - Add your Azure Table Storage connection string and JWT secret
+### Initial Setup
 
-2. **Run with Docker Compose**
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/jWatsonDev/cbbChurchWorshipTracker.git
+   cd cbbChurchWorshipTracker
+   ```
+
+2. **Configure environment variables**
+   ```bash
+   cp api/.env.local.example api/.env.local
+   ```
+   
+   Edit `api/.env.local` and set:
+   - `JWT_SECRET`: Generate a strong secret (e.g., `openssl rand -base64 32`)
+   - `TABLE_CONN`: Your Azure Storage connection string (from Azure Portal or CLI)
+   
+   To get your Azure Table Storage connection string:
+   ```bash
+   az storage account show-connection-string \
+     --name <storage-account-name> \
+     --resource-group <resource-group> \
+     --query connectionString -o tsv
+   ```
+
+3. **Start services with Docker Compose**
    ```bash
    docker compose up -d
    ```
-   - API: http://localhost:3000
-   - UI: http://localhost:4200
+   This will build and start both API and UI containers.
+   
+   - **API**: http://localhost:3000
+   - **UI**: http://localhost:4200
+   - **API Health**: http://localhost:3000 (should return "Hello World!")
 
-3. **Create users**
+4. **Create initial users**
+   
+   The app requires authenticated users. Create your first user:
    ```bash
    cd api
-   npm run create-user -- --username your.name --password YourPassword --role user
+   TABLE_CONN="<your-connection-string>" \
+   USERS_TABLE_NAME=Users \
+   npx ts-node scripts/create-user.ts \
+     --username your.name \
+     --password YourPassword \
+     --role user
+   ```
+   
+   Or use the connection from `.env.local`:
+   ```bash
+   cd api
+   TABLE_CONN="$(grep '^TABLE_CONN=' .env.local | cut -d= -f2-)" \
+   USERS_TABLE_NAME=Users \
+   npx ts-node scripts/create-user.ts \
+     --username your.name \
+     --password YourPassword \
+     --role user
    ```
 
-### Deployment
+### Development Workflow
 
-Infrastructure is managed with Bicep templates in `/infrastructure`.
+**View logs:**
+```bash
+docker compose logs -f api    # API logs
+docker compose logs -f ui     # UI logs
+```
+
+**Restart services:**
+```bash
+docker compose restart api
+docker compose restart ui
+```
+
+**Rebuild after code changes:**
+```bash
+docker compose build api      # Rebuild API only
+docker compose build ui       # Rebuild UI only
+docker compose up -d          # Restart with new images
+```
+
+**Stop all services:**
+```bash
+docker compose down
+```
+
+**Run API locally (without Docker):**
+```bash
+cd api
+npm install
+npm run start:dev
+```
+
+**Run UI locally (without Docker):**
+```bash
+cd ui
+npm install
+npm start
+```
+
+### Testing the Application
+
+1. Navigate to http://localhost:4200
+2. Log in with the user you created
+3. Add song entries via the dashboard
+4. View charts and statistics
+
+## Azure Deployment
+
+### Prerequisites
+
+- Azure CLI logged in: `az login`
+- Docker with buildx support
+- A resource group created: `az group create --name cbbChurchWorshipTracker --location eastus`
+
+### Step 1: Deploy Infrastructure
+
+The Bicep templates create:
+- Azure Container Registry (ACR)
+- Azure Storage Account with Table Storage
+- Azure Container Instance for API
+- Azure Container Instance for UI
 
 ```bash
 cd infrastructure
+
+# Deploy with your parameters
 az deployment group create \
-  --resource-group <your-rg> \
+  --resource-group cbbChurchWorshipTracker \
   --template-file main.bicep \
-  --parameters namePrefix=<prefix> jwtSecret=<strong-secret>
+  --parameters \
+    namePrefix=cbbchurch \
+    jwtSecret="<strong-secret-generate-with-openssl-rand-base64-32>" \
+    jwtExpiresIn=15m \
+    imageTag=latest
 ```
 
-Then build/push images:
+**Save the outputs:**
 ```bash
-# Build and push API
-docker buildx build --platform linux/amd64 -t <acr>.azurecr.io/cbbchurch-api:latest -f api/Dockerfile api --push
+az deployment group show \
+  --resource-group cbbChurchWorshipTracker \
+  --name main \
+  --query properties.outputs
+```
 
-# Build and push UI
-docker buildx build --platform linux/amd64 -t <acr>.azurecr.io/cbbchurch-ui:latest -f ui/Dockerfile.prod ui --push
+You'll need:
+- `acrLoginServer` (e.g., `cbbchurchacrXXXXXX.azurecr.io`)
+- `apiUrl` (e.g., `http://cbbchurch-api-XXXXXX.eastus.azurecontainer.io:3000`)
+- `uiUrl` (e.g., `http://cbbchurch-ui-XXXXXX.eastus.azurecontainer.io`)
+- `tableStorageAccount` (name of storage account)
+
+### Step 2: Build and Push Docker Images
+
+**Login to ACR:**
+```bash
+az acr login --name <acrName>
+```
+
+**Build and push API:**
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t <acrLoginServer>/cbbchurch-api:latest \
+  -f api/Dockerfile \
+  api \
+  --push
+```
+
+**Build and push UI:**
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t <acrLoginServer>/cbbchurch-ui:latest \
+  -f ui/Dockerfile.prod \
+  ui \
+  --push
+```
+
+### Step 3: Create Users in Production
+
+```bash
+# Get connection string from deployed storage
+TABLE_CONN=$(az storage account show-connection-string \
+  --name <tableStorageAccount> \
+  --resource-group cbbChurchWorshipTracker \
+  --query connectionString -o tsv)
+
+# Create users
+cd api
+TABLE_CONN="$TABLE_CONN" \
+USERS_TABLE_NAME=Users \
+npx ts-node scripts/create-user.ts \
+  --username your.name \
+  --password YourPassword \
+  --role user
+```
+
+### Step 4: Restart Containers
+
+After pushing new images, restart the ACI containers to pull latest:
+
+```bash
+# Restart API
+az container restart \
+  --resource-group cbbChurchWorshipTracker \
+  --name cbbchurch-api-<suffix>
+
+# Restart UI
+az container restart \
+  --resource-group cbbChurchWorshipTracker \
+  --name cbbchurch-ui-<suffix>
+```
+
+### Step 5: Verify Deployment
+
+1. Visit the UI URL from deployment outputs
+2. Test login with created user
+3. Check API health at the API URL
+
+### Updating After Code Changes
+
+```bash
+# 1. Build and push new images (repeat Step 2)
+docker buildx build --platform linux/amd64 -t <acrLoginServer>/cbbchurch-api:latest -f api/Dockerfile api --push
+docker buildx build --platform linux/amd64 -t <acrLoginServer>/cbbchurch-ui:latest -f ui/Dockerfile.prod ui --push
+
+# 2. Restart containers (repeat Step 4)
+az container restart -g cbbChurchWorshipTracker -n cbbchurch-api-<suffix>
+az container restart -g cbbChurchWorshipTracker -n cbbchurch-ui-<suffix>
+```
+
+### Viewing Production Logs
+
+```bash
+# API logs
+az container logs \
+  --resource-group cbbChurchWorshipTracker \
+  --name cbbchurch-api-<suffix> \
+  --container-name api
+
+# UI logs
+az container logs \
+  --resource-group cbbChurchWorshipTracker \
+  --name cbbchurch-ui-<suffix> \
+  --container-name ui
+```
+
+### Cost Management
+
+**Monitor costs:**
+```bash
+az consumption usage list \
+  --query "[?resourceGroup=='cbbChurchWorshipTracker']"
+```
+
+**Stop containers (to save costs):**
+```bash
+az container stop -g cbbChurchWorshipTracker -n cbbchurch-api-<suffix>
+az container stop -g cbbChurchWorshipTracker -n cbbchurch-ui-<suffix>
+```
+
+**Restart when needed:**
+```bash
+az container start -g cbbChurchWorshipTracker -n cbbchurch-api-<suffix>
+az container start -g cbbChurchWorshipTracker -n cbbchurch-ui-<suffix>
 ```
 
 ## Project Structure
