@@ -1,0 +1,295 @@
+.songs-view {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1.25rem 1rem 1.5rem;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  color: var(--text);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.subtitle {
+  color: #475569;
+  margin-top: 0.25rem;
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter {
+  min-width: 260px;
+  width: 100%;
+}
+
+.controls .primary {
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.controls .primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.dialog-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+:host ::ng-deep .songs-dialog-panel .mat-mdc-dialog-surface {
+  padding: 2rem;
+  max-height: 100%;
+}
+
+.dialog-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.5rem;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.dialog-sub {
+  margin: 0;
+  color: #475569;
+}
+
+.create {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.create mat-form-field {
+  width: 100%;
+}
+
+.create .songs-select {
+  width: 100%;
+}
+
+.song-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.song-input-row .add {
+  height: 56px;
+  min-width: 48px;
+  border: none;
+  border-radius: 10px;
+  background: #0ea5e9;
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0 1rem;
+}
+
+.song-input-row .add:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-weight: 600;
+  cursor: grab;
+}
+
+.pill .remove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #0f172a;
+  font-weight: 700;
+  padding: 0 0.2rem;
+}
+
+.drag-handle {
+  color: #94a3b8;
+  cursor: grab;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.actions button {
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.actions .secondary {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.actions button[type='submit'] {
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  color: #fff;
+}
+
+.actions button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.create .error {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.row-actions .link {
+  border: none;
+  background: transparent;
+  color: #0ea5e9;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0;
+}
+
+.row-actions .danger {
+  color: #b91c1c;
+}
+
+.table-shell {
+  background: #f8fafc;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.82);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  z-index: 1;
+}
+
+.song-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.5rem;
+  color: #0f172a;
+}
+
+.dot {
+  color: #94a3b8;
+  margin-left: 0.3rem;
+}
+
+table {
+  width: 100%;
+  background: transparent;
+  color: #0f172a;
+}
+
+th.mat-header-cell {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+td.mat-cell {
+  color: #0f172a;
+}
+
+.mat-mdc-table .mdc-data-table__row {
+  border-color: #e2e8f0;
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #475569;
+  padding: 1rem;
+}
+
+.state.error {
+  color: #b91c1c;
+}
+
+/* Form field subtle light tweaks */
+.songs-view .mdc-text-field--outlined {
+  background: #fff;
+}
+
+.songs-view .mat-mdc-form-field-label {
+  color: #475569;
+}
+
+@media (max-width: 768px) {
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .song-list {
+    gap: 0.2rem 0.4rem;
+  }
+}

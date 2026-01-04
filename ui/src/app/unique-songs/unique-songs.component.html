@@ -1,0 +1,101 @@
+<section class="unique-card">
+  <header>
+    <div>
+      <p class="eyebrow">Library</p>
+      <h2>Worship database</h2>
+      <p class="subtitle">Manage canonical song names and aliases.</p>
+    </div>
+    <div class="status" *ngIf="loading(); else loaded">
+      <span class="dot"></span>
+      <span>Loading…</span>
+    </div>
+    <ng-template #loaded>
+      <div class="status ok">
+        <span class="dot"></span>
+        <span>{{ songs().length }} tracked</span>
+      </div>
+    </ng-template>
+  </header>
+
+  <div class="form-grid">
+    <label>
+      <span>Title</span>
+      <input type="text" [formControl]="form.controls.title" placeholder="e.g. Holy Forever" />
+    </label>
+
+    <label>
+      <span>Author</span>
+      <input type="text" [formControl]="form.controls.author" placeholder="e.g. Chris Tomlin" />
+    </label>
+
+    <label>
+      <span>Aliases (comma separated)</span>
+      <input type="text" [formControl]="form.controls.aliases" placeholder="Holy Forever (Live), Holy Forever - Acoustic" />
+    </label>
+
+    <label class="wide">
+      <span>Notes</span>
+      <textarea rows="2" [formControl]="form.controls.notes" placeholder="Key, arranger, preferred version"></textarea>
+    </label>
+
+    <div class="actions">
+      <button type="button" (click)="submit()" [disabled]="form.invalid || saving()">
+        {{ editingId() ? 'Save changes' : 'Add song' }}
+      </button>
+      <button type="button" class="ghost" (click)="cancelEdit()" *ngIf="editingId()">Cancel</button>
+      <p class="error" *ngIf="error()">{{ error() }}</p>
+    </div>
+  </div>
+
+  <div class="table-shell" *ngIf="!error(); else errorState">
+    <table mat-table [dataSource]="dataSource" matSort class="mat-elevation-z1">
+      <ng-container matColumnDef="title">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Title</th>
+        <td mat-cell *matCellDef="let song">{{ song.title }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="author">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Author</th>
+        <td mat-cell *matCellDef="let song">{{ song.author }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="aliases">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Aliases</th>
+        <td mat-cell *matCellDef="let song">
+          <div class="alias-list">
+            <span *ngFor="let alias of song.aliases; let i = index">
+              {{ alias }}<span class="dot" *ngIf="i < song.aliases.length - 1">•</span>
+            </span>
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="notes">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Notes</th>
+        <td mat-cell *matCellDef="let song" class="notes">{{ song.notes }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="updated">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Updated</th>
+        <td mat-cell *matCellDef="let song">{{ song.updatedAt | date: 'yyyy-MM-dd' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let song" class="actions-cell">
+          <div class="row-actions">
+            <button type="button" class="link" (click)="startEdit(song)">Edit</button>
+            <button type="button" class="link danger" (click)="delete(song)" [disabled]="saving()">Delete</button>
+          </div>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+  </div>
+
+  <ng-template #errorState>
+    <div class="error-state">{{ error() }}</div>
+  </ng-template>
+</section>

@@ -1,0 +1,36 @@
+<section class="login-card">
+  <div class="header">
+    <div>
+      <p class="eyebrow">Authentication Status</p>
+      <h3 *ngIf="!authed()">Sign in to load data</h3>
+      <h3 *ngIf="authed()">Signed in</h3>
+    </div>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" *ngIf="!authed(); else authedBlock">
+    <label>
+      <span>Username</span>
+      <input type="text" formControlName="username" placeholder="watson.jay" autocomplete="username" />
+    </label>
+
+    <label>
+      <span>Password</span>
+      <input type="password" formControlName="password" placeholder="••••••" autocomplete="current-password" />
+    </label>
+
+    <button type="submit" [disabled]="status() === 'loading' || form.invalid">
+      {{ status() === 'loading' ? 'Signing in…' : 'Sign in' }}
+    </button>
+
+    <p class="error" *ngIf="error()">{{ error() }}</p>
+  </form>
+
+  <ng-template #authedBlock>
+    <div class="authed-row">
+      <div>
+        <p class="welcome">Welcome, {{ user() || 'user' }}.</p>
+      </div>
+      <button type="button" class="secondary" (click)="logout()">Sign out</button>
+    </div>
+  </ng-template>
+</section>

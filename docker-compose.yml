@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      context: ./api
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./api/.env.local
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile.prod
+    ports:
+      - "4200:80"
+    depends_on:
+      - api
+
+networks:
+  default:
+    name: cbbchurchwt

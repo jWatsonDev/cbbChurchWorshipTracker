@@ -1,0 +1,54 @@
+<section class="charts-shell">
+  <header>
+    <p class="eyebrow">Worship tracker</p>
+    <h1>Song insights</h1>
+    <p class="subtitle">See what you play most, least, and how rotation looks over time.</p>
+  </header>
+
+  <div class="state" *ngIf="loading">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Loading charts…</p>
+  </div>
+  <div class="state error" *ngIf="!loading && error">
+    <p>{{ error }}</p>
+  </div>
+
+  <div class="grid" *ngIf="!loading && !error">
+    <div class="card">
+      <h3>Top 10 most played</h3>
+      <div class="chart-holder">
+        <canvas
+          baseChart
+          *ngIf="topPlayedData"
+          [data]="topPlayedData"
+          [options]="barOptions"
+          type="bar"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Bottom 10 least played</h3>
+      <div class="chart-holder">
+        <canvas
+          baseChart
+          *ngIf="leastPlayedData"
+          [data]="leastPlayedData"
+          [options]="barOptions"
+          type="bar"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Days since last played</h3>
+      <div class="chart-holder">
+        <canvas
+          baseChart
+          *ngIf="daysSinceData"
+          [data]="daysSinceData"
+          [options]="barOptions"
+          type="bar"></canvas>
+      </div>
+    </div>
+
+  </div>
+</section>

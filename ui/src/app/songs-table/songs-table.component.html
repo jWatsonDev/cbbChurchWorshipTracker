@@ -1,0 +1,122 @@
+<section class="songs-view">
+  <header>
+    <div>
+      <p class="eyebrow">CBBChurch Worship tracker</p>
+      <h1>Worship schedule</h1>
+      <p class="subtitle">Sort, search, and find under-used songs quickly.</p>
+    </div>
+  </header>
+
+  <div class="controls">
+    <mat-form-field appearance="outline" class="filter">
+      <mat-label>Filter songs or dates</mat-label>
+      <input matInput (input)="applyFilter($event)" placeholder="e.g. Gratitude or 2025" />
+    </mat-form-field>
+
+    <button type="button" class="primary" (click)="openCreateDialog()">Add Sunday</button>
+  </div>
+
+  <ng-template #createDialog>
+    <div class="dialog-shell">
+      <h3>{{ editing ? 'Edit Sunday' : 'Add Sunday' }}</h3>
+      <p class="dialog-sub">Pick the date and select one or more songs.</p>
+
+      <form class="create" [formGroup]="createForm" (ngSubmit)="saveSunday()">
+        <mat-form-field appearance="outline">
+          <mat-label>Date</mat-label>
+          <input matInput [matDatepicker]="picker" formControlName="date" [readonly]="!!editing" />
+          <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+          <mat-datepicker #picker></mat-datepicker>
+        </mat-form-field>
+
+        <div class="song-input-row">
+          <mat-form-field appearance="outline" class="songs-select">
+            <mat-label>Add a song</mat-label>
+            <input
+              matInput
+              formControlName="songInput"
+              [matAutocomplete]="auto"
+              (keyup.enter)="addSong()"
+              (blur)="songInput = (createForm.value.songInput || '')"
+            />
+            <mat-hint>Type a title and click + to add</mat-hint>
+          </mat-form-field>
+          <button type="button" class="add" (click)="addSong()" [disabled]="!(createForm.value.songInput || '').trim()">+</button>
+        </div>
+
+        <mat-autocomplete #auto="matAutocomplete" (optionSelected)="addSongFromSelection($event)">
+          <mat-option *ngFor="let song of filteredSongs$ | async" [value]="song.title">{{ song.title }}</mat-option>
+        </mat-autocomplete>
+
+        <div
+          class="selected"
+          *ngIf="(createForm.value?.songs?.length || 0) > 0"
+          cdkDropList
+          (cdkDropListDropped)="reorderSongs($event)"
+        >
+          <span class="pill" *ngFor="let song of createForm.value.songs; let i = index" cdkDrag>
+            <span class="drag-handle">⋮⋮</span>
+            <span class="title">{{ song }}</span>
+            <button type="button" class="remove" (click)="removeSong(song)">x</button>
+          </span>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="secondary" (click)="closeCreateDialog()" [disabled]="creating">Cancel</button>
+          <button type="submit" [disabled]="createForm.invalid || creating">{{ creating ? 'Saving…' : editing ? 'Save changes' : 'Save Sunday' }}</button>
+        </div>
+
+        <div class="error" *ngIf="createError">{{ createError }}</div>
+      </form>
+    </div>
+  </ng-template>
+
+  <div class="table-shell" *ngIf="!error; else errorState">
+    <div class="loading-overlay" *ngIf="loading">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Loading songs…</p>
+    </div>
+
+    <table mat-table [dataSource]="dataSource" matSort class="mat-elevation-z2">
+      <ng-container matColumnDef="date">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Date</th>
+        <td mat-cell *matCellDef="let row">{{ row.date }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="songs">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Songs</th>
+        <td mat-cell *matCellDef="let row">
+          <div class="song-list">
+            <span *ngFor="let song of row.songs; let i = index">
+              {{ song }}<span class="dot" *ngIf="i < row.songs.length - 1">•</span>
+            </span>
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="count">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>#</th>
+        <td mat-cell *matCellDef="let row">{{ row.songs.length }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>Actions</th>
+        <td mat-cell *matCellDef="let row">
+          <div class="row-actions">
+            <button type="button" class="link" (click)="openEditDialog(row)">Edit</button>
+            <button type="button" class="link danger" (click)="deleteSunday(row)">Delete</button>
+          </div>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+  </div>
+
+  <ng-template #errorState>
+    <div class="state error">
+      <p>{{ error }}</p>
+    </div>
+  </ng-template>
+</section>

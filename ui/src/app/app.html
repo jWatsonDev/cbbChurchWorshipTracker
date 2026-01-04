@@ -1,0 +1,29 @@
+<div class="app-shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">CBBChurch</p>
+      <h1>Worship Tracker</h1>
+    </div>
+    <nav *ngIf="authed()">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Dashboard</a>
+      <a routerLink="/song-history" routerLinkActive="active">Worship schedule</a>
+      <a routerLink="/unique-songs" routerLinkActive="active">Worship database</a>
+    </nav>
+  </header>
+
+  <app-login></app-login>
+
+  <ng-container *ngIf="authed(); else locked">
+    <router-outlet></router-outlet>
+  </ng-container>
+
+  <ng-template #locked>
+    <div class="locked">
+      <p>Please sign in to view content.</p>
+    </div>
+  </ng-template>
+
+  <footer class="app-footer">
+    <p>Made with ❤️ for CBBChurch in Celina, TN by Jay Watson</p>
+  </footer>
+</div>

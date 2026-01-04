@@ -1,0 +1,81 @@
+.app-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3rem;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.topbar h1 {
+    margin: 0.1rem 0 0;
+    font-size: 1.8rem;
+}
+
+.topbar .eyebrow {
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin: 0;
+    font-size: 0.8rem;
+    color: #334155;
+}
+
+nav {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
+nav a {
+    text-decoration: none;
+    color: #0f172a;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: #f8fafc;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+}
+
+nav a:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+}
+
+nav a.active {
+    background: linear-gradient(135deg, #0ea5e9, #6366f1);
+    color: #fff;
+    border: none;
+}
+
+.hero {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.22), rgba(99, 102, 241, 0.18)), #ffffff;
+    border: 1px solid var(--border);
+}
+
+.app-footer {
+    margin-top: auto;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+}
+
+.app-footer p {
+    margin: 0;
+    font-size: 0.65rem;
+    color: #94a3b8;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
