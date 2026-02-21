@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
-import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
-import { throwError, switchMap, catchError, BehaviorSubject, filter, take } from 'rxjs';
+import { HttpInterceptorFn, HttpErrorResponse, HttpRequest, HttpHandlerFn } from '@angular/common/http';
+import { Observable, throwError, switchMap, catchError, BehaviorSubject, filter, take } from 'rxjs';
 import { AuthService } from './auth.service';
 
 let isRefreshing = false;
@@ -29,9 +29,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   );
 };
 
-const handleRefresh: HttpInterceptorFn = (req, next) => {
-  const auth = inject(AuthService);
-
+function handleRefresh(
+  auth: AuthService,
+  req: HttpRequest<unknown>,
+  next: HttpHandlerFn,
+): Observable<any> {
   if (!isRefreshing) {
     isRefreshing = true;
     refreshSubject.next(null);
@@ -64,4 +66,4 @@ const handleRefresh: HttpInterceptorFn = (req, next) => {
       return next(retried);
     })
   );
-};
+}
