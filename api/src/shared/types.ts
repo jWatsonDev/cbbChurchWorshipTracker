@@ -38,3 +38,9 @@ export interface JwtPayload {
   username: string;
   role: string;
 }
+
+export interface RefreshPayload {
+  sub: string;
+  username: string;
+  type: 'refresh';
+}

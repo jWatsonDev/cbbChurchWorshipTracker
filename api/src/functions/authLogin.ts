@@ -35,12 +35,17 @@ app.http('authLogin', {
       }
 
       const role = (entity.role as string) ?? 'user';
-      const payload = { sub: body.username, username: body.username, role };
       const secret = process.env.JWT_SECRET || 'change-me-in-prod';
       const expiresIn = (process.env.JWT_EXPIRES_IN || '15m') as jwt.SignOptions['expiresIn'];
-      const accessToken = jwt.sign(payload, secret, { expiresIn });
+      const refreshExpiresIn = (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'];
 
-      return jsonResponse(200, { accessToken, username: body.username, role });
+      const accessPayload = { sub: body.username, username: body.username, role };
+      const accessToken = jwt.sign(accessPayload, secret, { expiresIn });
+
+      const refreshPayload = { sub: body.username, username: body.username, type: 'refresh' as const };
+      const refreshToken = jwt.sign(refreshPayload, secret, { expiresIn: refreshExpiresIn });
+
+      return jsonResponse(200, { accessToken, refreshToken, username: body.username, role });
     } catch (err) {
       return errorResponse(err);
     }

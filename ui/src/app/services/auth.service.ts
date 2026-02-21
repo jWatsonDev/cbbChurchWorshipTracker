@@ -6,6 +6,7 @@ import { environment } from '../../environments/environment';
 
 export interface LoginResponse {
   accessToken: string;
+  refreshToken: string;
   username: string;
   role?: string;
 }
@@ -14,6 +15,7 @@ export interface LoginResponse {
 export class AuthService {
   private readonly apiBase = environment.apiUrl;
   private readonly storageKey = 'auth_token';
+  private readonly refreshKey = 'auth_refresh_token';
   private readonly userKey = 'auth_user';
 
   private tokenSignal = signal<string | null>(this.readToken());
@@ -30,22 +32,44 @@ export class AuthService {
       .post<LoginResponse>(`${this.apiBase}/auth/login`, { username, password })
       .pipe(
         tap((res) => {
-          this.persist(res.accessToken, res.username);
+          this.persist(res.accessToken, res.refreshToken, res.username);
         })
       );
   }
 
   logout(): void {
-    this.persist(null, null);
+    this.persist(null, null, null);
   }
 
-  private persist(token: string | null, username: string | null): void {
+  /** Attempt silent renewal using the stored refresh token. */
+  refresh(): Observable<LoginResponse> {
+    const refreshToken = this.readRefreshToken();
+    if (!refreshToken) {
+      this.logout();
+      return new Observable((sub) => sub.error(new Error('No refresh token')));
+    }
+    return this.http
+      .post<LoginResponse>(`${this.apiBase}/auth/refresh`, { refreshToken })
+      .pipe(
+        tap((res) => {
+          this.persist(res.accessToken, res.refreshToken, res.username);
+        })
+      );
+  }
+
+  private persist(token: string | null, refreshToken: string | null, username: string | null): void {
     this.tokenSignal.set(token);
     this.userSignal.set(username);
     if (token) {
       localStorage.setItem(this.storageKey, token);
     } else {
       localStorage.removeItem(this.storageKey);
+    }
+
+    if (refreshToken) {
+      localStorage.setItem(this.refreshKey, refreshToken);
+    } else {
+      localStorage.removeItem(this.refreshKey);
     }
 
     if (username) {
@@ -58,6 +82,11 @@ export class AuthService {
   private readToken(): string | null {
     if (typeof localStorage === 'undefined') return null;
     return localStorage.getItem(this.storageKey);
+  }
+
+  private readRefreshToken(): string | null {
+    if (typeof localStorage === 'undefined') return null;
+    return localStorage.getItem(this.refreshKey);
   }
 
   private readUser(): string | null {
