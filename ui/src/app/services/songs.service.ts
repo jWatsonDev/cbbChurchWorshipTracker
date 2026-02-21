@@ -115,6 +115,7 @@ function buildCharts(entries: SongEntry[]): ChartsData {
   const counts = new Map<string, number>();
   const lastPlayed = new Map<string, number>(); // epoch ms
   const monthly = new Map<string, number>(); // YYYY-MM -> plays
+  const displayNames = new Map<string, string>(); // lowercase -> most recent casing
 
   for (const entry of entries) {
     const playedDate = parseDate(entry.date);
@@ -122,22 +123,26 @@ function buildCharts(entries: SongEntry[]): ChartsData {
     monthly.set(monthKey, (monthly.get(monthKey) ?? 0) + entry.songs.length);
 
     for (const song of entry.songs) {
-      counts.set(song, (counts.get(song) ?? 0) + 1);
+      const key = song.toLowerCase();
+      counts.set(key, (counts.get(key) ?? 0) + 1);
       const ts = playedDate.getTime();
-      const prev = lastPlayed.get(song) ?? 0;
+      const prev = lastPlayed.get(key) ?? 0;
       if (ts > prev) {
-        lastPlayed.set(song, ts);
+        lastPlayed.set(key, ts);
+        displayNames.set(key, song);
+      } else if (!displayNames.has(key)) {
+        displayNames.set(key, song);
       }
     }
   }
 
   const sortedCounts = [...counts.entries()]
-    .map(([song, plays]) => ({ song, plays }))
+    .map(([key, plays]) => ({ song: displayNames.get(key) ?? key, plays }))
     .sort((a, b) => b.plays - a.plays || a.song.localeCompare(b.song));
 
   const now = Date.now();
-  const gaps: SongGap[] = [...lastPlayed.entries()].map(([song, ts]) => ({
-    song,
+  const gaps: SongGap[] = [...lastPlayed.entries()].map(([key, ts]) => ({
+    song: displayNames.get(key) ?? key,
     lastPlayed: new Date(ts).toISOString(),
     daysSince: Math.round((now - ts) / 86_400_000)
   })).sort((a, b) => b.daysSince - a.daysSince || a.song.localeCompare(b.song));
@@ -146,9 +151,9 @@ function buildCharts(entries: SongEntry[]): ChartsData {
     .map(([month, plays]) => ({ month, plays }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  const topPlayed = sortedCounts.slice(0, 15);
-  const leastPlayed = sortedCounts.slice(-15).reverse();
-  const daysSinceLastPlayed = gaps.slice(0, 15);
+  const topPlayed = sortedCounts.slice(0, 25);
+  const leastPlayed = sortedCounts.slice(-25).reverse();
+  const daysSinceLastPlayed = gaps.slice(0, 25);
 
   return { topPlayed, leastPlayed, daysSinceLastPlayed, monthlyPlays };
 }

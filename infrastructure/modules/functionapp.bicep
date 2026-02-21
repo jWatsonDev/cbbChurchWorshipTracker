@@ -3,7 +3,10 @@ param functionAppName string
 param storageAccountName string
 param appInsightsName string
 param tableConnectionString string
-param runtime string = 'node'
+@secure()
+param jwtSecret string
+param jwtExpiresIn string = '15m'
+param allowedOrigins array = []
 
 var storageKeys = listKeys(resourceId('Microsoft.Storage/storageAccounts', storageAccountName), '2023-01-01').keys
 var storageKey = storageKeys[0].value
@@ -40,6 +43,11 @@ resource app 'Microsoft.Web/sites@2023-01-01' = {
     httpsOnly: true
     siteConfig: {
       ftpsState: 'Disabled'
+      nodeVersion: '~20'
+      cors: {
+        allowedOrigins: allowedOrigins
+        supportCredentials: true
+      }
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
@@ -59,15 +67,27 @@ resource app 'Microsoft.Web/sites@2023-01-01' = {
         }
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: runtime
+          value: 'node'
+        }
+        {
+          name: 'WEBSITE_NODE_DEFAULT_VERSION'
+          value: '~20'
         }
         {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
           value: insights.properties.InstrumentationKey
         }
         {
-          name: 'SongsStorage__ConnectionString'
+          name: 'TABLE_CONN'
           value: tableConnectionString
+        }
+        {
+          name: 'JWT_SECRET'
+          value: jwtSecret
+        }
+        {
+          name: 'JWT_EXPIRES_IN'
+          value: jwtExpiresIn
         }
       ]
     }

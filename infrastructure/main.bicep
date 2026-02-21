@@ -3,15 +3,11 @@ param location string = resourceGroup().location
 @secure()
 param jwtSecret string = 'change-me'
 param jwtExpiresIn string = '15m'
-param imageTag string = 'latest'
 
 var suffix = toLower(substring(uniqueString(resourceGroup().id), 0, 8))
 var staticStorageName = toLower('${namePrefix}st${suffix}')
-var acrName = toLower('${namePrefix}acr${suffix}')
-var containerGroupName = toLower('${namePrefix}-api-${suffix}')
-var dnsLabel = toLower('${namePrefix}-api-${suffix}')
-var uiContainerGroupName = toLower('${namePrefix}-ui-${suffix}')
-var uiDnsLabel = toLower('${namePrefix}-ui-${suffix}')
+var functionAppName = toLower('${namePrefix}-func-${suffix}')
+var appInsightsName = toLower('${namePrefix}-ai-${suffix}')
 
 module staticStorage 'modules/storage.bicep' = {
   name: 'staticStorage'
@@ -25,45 +21,26 @@ module staticStorage 'modules/storage.bicep' = {
   }
 }
 
-module acr 'modules/acr.bicep' = {
-  name: 'acr'
+module functionApp 'modules/functionapp.bicep' = {
+  name: 'functionApp'
   params: {
     location: location
-    registryName: acrName
-  }
-}
-
-module containerInstance 'modules/aci.bicep' = {
-  name: 'containerInstance'
-  params: {
-    location: location
-    containerGroupName: containerGroupName
-    dnsNameLabel: dnsLabel
-    acrName: acrName
-    imageTag: imageTag
+    functionAppName: functionAppName
+    storageAccountName: staticStorageName
+    appInsightsName: appInsightsName
     tableConnectionString: staticStorage.outputs.connectionStringOut
     jwtSecret: jwtSecret
     jwtExpiresIn: jwtExpiresIn
+    allowedOrigins: [
+      'https://${staticStorageName}.z13.web.${environment().suffixes.storage}'
+      'http://localhost:4200'
+      'http://localhost:4280'
+    ]
   }
-  dependsOn: [staticStorage, acr]
-}
-
-module uiContainerInstance 'modules/aci-ui.bicep' = {
-  name: 'uiContainerInstance'
-  params: {
-    location: location
-    containerGroupName: uiContainerGroupName
-    dnsNameLabel: uiDnsLabel
-    acrName: acrName
-    imageTag: imageTag
-  }
-  dependsOn: [acr]
 }
 
 output staticSiteUrl string = staticStorage.outputs.staticWebsiteUrl
 output staticStorageConnection string = staticStorage.outputs.connectionStringOut
 output tableStorageAccount string = staticStorage.outputs.storageAccountName
-output apiUrl string = 'http://${containerInstance.outputs.fqdn}:3000'
-output uiUrl string = 'http://${uiContainerInstance.outputs.fqdn}'
-output acrLoginServer string = acr.outputs.loginServer
-output acrName string = acr.outputs.registryName
+output functionAppUrl string = 'https://${functionApp.outputs.functionAppHostname}'
+output functionAppName string = functionApp.outputs.functionAppNameOut

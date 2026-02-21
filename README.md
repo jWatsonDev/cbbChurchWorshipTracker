@@ -1,30 +1,29 @@
 # Church Worship Song Tracker
 
-A full-stack application for tracking worship songs used at CBB Church, featuring a NestJS API backend with Azure Table Storage and an Angular frontend.
+A full-stack application for tracking worship songs used at CBB Church, featuring an Azure Functions API backend with Azure Table Storage and an Angular frontend.
 
 ## Features
 
-- 🎵 Track songs by service date with complete song lists
-- 📊 View song usage statistics and charts
-- 🔐 JWT-based authentication for protected operations
-- 📱 Responsive Angular UI with Material Design
-- ☁️ Azure deployment ready (ACI + Table Storage)
-- 🐳 Docker Compose for local development
+- Track songs by service date with complete song lists
+- View song usage statistics and charts
+- JWT-based authentication for protected operations
+- Responsive Angular UI with Material Design
+- Azure deployment (Functions + Blob Static Website)
 
 ## Architecture
 
-- **API**: NestJS (Node.js/TypeScript) REST API
+- **API**: Azure Functions v4 (Node.js/TypeScript)
 - **UI**: Angular 19 with standalone components
 - **Database**: Azure Table Storage
 - **Auth**: JWT with bcryptjs password hashing
-- **Deployment**: Azure Container Instances + ACR
+- **Hosting**: Azure Blob Static Website (UI) + Azure Functions Consumption Plan (API)
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 20+
-- Docker & Docker Compose
+- Azure Functions Core Tools v4 (`npm i -g azure-functions-core-tools@4`)
 - Azure CLI (for deployment)
 
 ## Local Development
@@ -37,15 +36,17 @@ A full-stack application for tracking worship songs used at CBB Church, featurin
    cd cbbChurchWorshipTracker
    ```
 
-2. **Configure environment variables**
+2. **Set up the API**
    ```bash
-   cp api/.env.local.example api/.env.local
+   cd api
+   npm install
+   cp local.settings.json.example local.settings.json
    ```
-   
-   Edit `api/.env.local` and set:
+
+   Edit `api/local.settings.json` and set:
+   - `TABLE_CONN`: Your Azure Storage connection string
    - `JWT_SECRET`: Generate a strong secret (e.g., `openssl rand -base64 32`)
-   - `TABLE_CONN`: Your Azure Storage connection string (from Azure Portal or CLI)
-   
+
    To get your Azure Table Storage connection string:
    ```bash
    az storage account show-connection-string \
@@ -54,83 +55,79 @@ A full-stack application for tracking worship songs used at CBB Church, featurin
      --query connectionString -o tsv
    ```
 
-3. **Start services with Docker Compose**
+3. **Set up the UI**
    ```bash
-   docker compose up -d
+   cd ui
+   npm install
    ```
-   This will build and start both API and UI containers.
-   
-   - **API**: http://localhost:3000
-   - **UI**: http://localhost:4200
-   - **API Health**: http://localhost:3000 (should return "Hello World!")
 
 4. **Create initial users**
-   
+
    The app requires authenticated users. Create your first user:
    ```bash
    cd api
    TABLE_CONN="<your-connection-string>" \
-   USERS_TABLE_NAME=Users \
    npx ts-node scripts/create-user.ts \
      --username your.name \
      --password YourPassword \
      --role user
    ```
-   
-   Or use the connection from `.env.local`:
-   ```bash
-   cd api
-   TABLE_CONN="$(grep '^TABLE_CONN=' .env.local | cut -d= -f2-)" \
-   USERS_TABLE_NAME=Users \
-   npx ts-node scripts/create-user.ts \
-     --username your.name \
-     --password YourPassword \
-     --role user
-   ```
+
+### Running Locally
+
+**Option A: Run API and UI separately (two terminals)**
+
+```bash
+# Terminal 1 - API (Azure Functions)
+cd api
+npm run build
+npm run start
+# API runs at http://localhost:7071/api/*
+
+# Terminal 2 - UI (Angular dev server)
+cd ui
+ng serve
+# UI runs at http://localhost:4200
+```
+
+Note: The UI `environment.ts` sets `apiUrl: '/api'`. When running separately, you'll need to either:
+- Use the SWA CLI (Option B below) to proxy everything together
+- Temporarily change `apiUrl` to `http://localhost:7071/api`
+
+**Option B: Use SWA CLI (recommended)**
+
+The SWA CLI proxies both the Angular dev server and Functions through a single port, so relative `/api` paths work seamlessly:
+
+```bash
+# Install SWA CLI (one-time)
+npm install -g @azure/static-web-apps-cli
+
+# Terminal 1 - Start Angular dev server
+cd ui && ng serve
+
+# Terminal 2 - Start SWA proxy
+swa start http://localhost:4200 --api-location ./api
+# Everything runs at http://localhost:4280
+```
 
 ### Development Workflow
 
-**View logs:**
-```bash
-docker compose logs -f api    # API logs
-docker compose logs -f ui     # UI logs
-```
-
-**Restart services:**
-```bash
-docker compose restart api
-docker compose restart ui
-```
-
-**Rebuild after code changes:**
-```bash
-docker compose build api      # Rebuild API only
-docker compose build ui       # Rebuild UI only
-docker compose up -d          # Restart with new images
-```
-
-**Stop all services:**
-```bash
-docker compose down
-```
-
-**Run API locally (without Docker):**
+**Rebuild API after code changes:**
 ```bash
 cd api
-npm install
-npm run start:dev
+npm run build    # Compile TypeScript
+npm run start    # Restart Functions runtime
 ```
 
-**Run UI locally (without Docker):**
+**Watch mode for API:**
 ```bash
-cd ui
-npm install
-npm start
+cd api
+npm run watch    # Auto-recompile on changes (run func start in another terminal)
 ```
 
 ### Testing the Application
 
-1. Navigate to http://localhost:4200
+1. Navigate to http://localhost:4280 (SWA CLI) or http://localhost:4200 (Angular direct)
 2. Log in with the user you created
 3. Add song entries via the dashboard
 4. View charts and statistics
@@ -140,29 +137,23 @@ npm start
 ### Prerequisites
 
 - Azure CLI logged in: `az login`
-- Docker with buildx support
 - A resource group created: `az group create --name cbbChurchWorshipTracker --location eastus`
 
 ### Step 1: Deploy Infrastructure
 
 The Bicep templates create:
-- Azure Container Registry (ACR)
-- Azure Storage Account with Table Storage
-- Azure Container Instance for API
-- Azure Container Instance for UI
+- Azure Storage Account with Table Storage + Static Website
+- Azure Functions App (Consumption/Y1 plan)
+- Application Insights
 
 ```bash
-cd infrastructure
-
-# Deploy with your parameters
 az deployment group create \
   --resource-group cbbChurchWorshipTracker \
-  --template-file main.bicep \
+  --template-file infrastructure/main.bicep \
   --parameters \
     namePrefix=cbbchurch \
-    jwtSecret="<strong-secret-generate-with-openssl-rand-base64-32>" \
-    jwtExpiresIn=15m \
-    imageTag=latest
+    jwtSecret="$(openssl rand -base64 32)" \
+    jwtExpiresIn=15m
 ```
 
 **Save the outputs:**
@@ -174,138 +165,91 @@ az deployment group show \
 ```
 
 You'll need:
-- `acrLoginServer` (e.g., `cbbchurchacrXXXXXX.azurecr.io`)
-- `apiUrl` (e.g., `http://cbbchurch-api-XXXXXX.eastus.azurecontainer.io:3000`)
-- `uiUrl` (e.g., `http://cbbchurch-ui-XXXXXX.eastus.azurecontainer.io`)
+- `functionAppUrl` (e.g., `https://cbbchurch-func-XXXXXX.azurewebsites.net`)
+- `staticSiteUrl` (e.g., `https://cbbchurchstXXXXXX.z13.web.core.windows.net`)
 - `tableStorageAccount` (name of storage account)
 
-### Step 2: Build and Push Docker Images
+### Step 2: Deploy the API (Azure Functions)
 
-**Login to ACR:**
 ```bash
-az acr login --name <acrName>
+cd api
+npm run build
+func azure functionapp publish <functionAppName>
 ```
 
-**Build and push API:**
-```bash
-docker buildx build \
-  --platform linux/amd64 \
-  -t <acrLoginServer>/cbbchurch-api:latest \
-  -f api/Dockerfile \
-  api \
-  --push
+### Step 3: Deploy the UI (Blob Static Website)
+
+Update `ui/src/environments/environment.prod.ts` with your Function App URL:
+```typescript
+export const environment = {
+  production: true,
+  apiUrl: 'https://<functionAppName>.azurewebsites.net/api'
+};
 ```
 
-**Build and push UI:**
+Build and upload:
 ```bash
-docker buildx build \
-  --platform linux/amd64 \
-  -t <acrLoginServer>/cbbchurch-ui:latest \
-  -f ui/Dockerfile.prod \
-  ui \
-  --push
+cd ui
+ng build --configuration production
+
+az storage blob upload-batch \
+  --account-name <storageAccountName> \
+  --destination '$web' \
+  --source dist/ui/browser \
+  --overwrite
 ```
 
-### Step 3: Create Users in Production
+### Step 4: Create Users in Production
 
 ```bash
-# Get connection string from deployed storage
 TABLE_CONN=$(az storage account show-connection-string \
   --name <tableStorageAccount> \
   --resource-group cbbChurchWorshipTracker \
   --query connectionString -o tsv)
 
-# Create users
 cd api
 TABLE_CONN="$TABLE_CONN" \
-USERS_TABLE_NAME=Users \
 npx ts-node scripts/create-user.ts \
   --username your.name \
   --password YourPassword \
   --role user
 ```
 
-### Step 4: Restart Containers
-
-After pushing new images, restart the ACI containers to pull latest:
-
-```bash
-# Restart API
-az container restart \
-  --resource-group cbbChurchWorshipTracker \
-  --name cbbchurch-api-<suffix>
-
-# Restart UI
-az container restart \
-  --resource-group cbbChurchWorshipTracker \
-  --name cbbchurch-ui-<suffix>
-```
-
 ### Step 5: Verify Deployment
 
-1. Visit the UI URL from deployment outputs
+1. Visit the static site URL from deployment outputs
 2. Test login with created user
-3. Check API health at the API URL
+3. Check API health at `https://<functionAppName>.azurewebsites.net/api/health`
 
 ### Updating After Code Changes
 
 ```bash
-# 1. Build and push new images (repeat Step 2)
-docker buildx build --platform linux/amd64 -t <acrLoginServer>/cbbchurch-api:latest -f api/Dockerfile api --push
-docker buildx build --platform linux/amd64 -t <acrLoginServer>/cbbchurch-ui:latest -f ui/Dockerfile.prod ui --push
+# Redeploy API
+cd api && npm run build && func azure functionapp publish <functionAppName>
 
-# 2. Restart containers (repeat Step 4)
-az container restart -g cbbChurchWorshipTracker -n cbbchurch-api-<suffix>
-az container restart -g cbbChurchWorshipTracker -n cbbchurch-ui-<suffix>
+# Redeploy UI
+cd ui && ng build --configuration production
+az storage blob upload-batch --account-name <storageAccountName> --destination '$web' --source dist/ui/browser --overwrite
 ```
 
 ### Viewing Production Logs
 
 ```bash
-# API logs
-az container logs \
-  --resource-group cbbChurchWorshipTracker \
-  --name cbbchurch-api-<suffix> \
-  --container-name api
-
-# UI logs
-az container logs \
-  --resource-group cbbChurchWorshipTracker \
-  --name cbbchurch-ui-<suffix> \
-  --container-name ui
+func azure functionapp logstream <functionAppName>
 ```
 
-### Cost Management
-
-**Monitor costs:**
-```bash
-az consumption usage list \
-  --query "[?resourceGroup=='cbbChurchWorshipTracker']"
-```
-
-**Stop containers (to save costs):**
-```bash
-az container stop -g cbbChurchWorshipTracker -n cbbchurch-api-<suffix>
-az container stop -g cbbChurchWorshipTracker -n cbbchurch-ui-<suffix>
-```
-
-**Restart when needed:**
-```bash
-az container start -g cbbChurchWorshipTracker -n cbbchurch-api-<suffix>
-az container start -g cbbChurchWorshipTracker -n cbbchurch-ui-<suffix>
-```
+Or via the Azure Portal under Function App > Log stream.
 
 ## Project Structure
 
 ```
-├── api/                  # NestJS backend
+├── api/                  # Azure Functions backend
 │   ├── src/
-│   │   ├── auth/        # JWT authentication
-│   │   ├── songs.controller.ts
-│   │   ├── unique-songs.controller.ts
-│   │   └── main.ts
-│   ├── scripts/         # User creation scripts
-│   └── Dockerfile
+│   │   ├── functions/   # HTTP-triggered functions (one per endpoint)
+│   │   └── shared/      # Auth, table client, helpers, types
+│   ├── scripts/         # User creation & seed scripts
+│   ├── host.json
+│   └── package.json
 ├── ui/                   # Angular frontend
 │   ├── src/
 │   │   ├── app/
@@ -315,31 +259,32 @@ az container start -g cbbChurchWorshipTracker -n cbbchurch-ui-<suffix>
 │   │   │   ├── songs-charts/
 │   │   │   └── unique-songs/
 │   │   └── environments/
-│   ├── nginx.conf
-│   └── Dockerfile.prod
+│   └── package.json
 ├── infrastructure/       # Bicep IaC templates
 │   ├── main.bicep
 │   └── modules/
-│       ├── aci.bicep
-│       ├── aci-ui.bicep
-│       ├── acr.bicep
+│       ├── functionapp.bicep
 │       └── storage.bicep
-└── docker-compose.yml
+├── staticwebapp.config.json
+└── utility/              # Data migration scripts
 ```
 
 ## API Endpoints
 
-All routes (except `/auth/login`) require JWT authentication via `Authorization: Bearer <token>` header.
+All routes (except `/api/auth/login`) require JWT authentication via `Authorization: Bearer <token>` header.
 
-- `POST /auth/login` - Authenticate and receive JWT
-- `GET /songs` - List all song entries
-- `POST /songs` - Create song entry
-- `PUT /songs/:date` - Update song entry
-- `DELETE /songs/:date` - Delete song entry
-- `GET /unique-songs` - List unique songs catalog
-- `POST /unique-songs` - Add unique song
-- `PUT /unique-songs/:id` - Update unique song
-- `DELETE /unique-songs/:id` - Delete unique song
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/health` | Health check |
+| POST | `/api/auth/login` | Authenticate and receive JWT |
+| GET | `/api/songs` | List all song entries |
+| POST | `/api/songs` | Create song entry |
+| PUT | `/api/songs/:date` | Update song entry |
+| DELETE | `/api/songs/:date` | Delete song entry |
+| GET | `/api/unique-songs` | List unique songs catalog |
+| POST | `/api/unique-songs` | Add unique song |
+| PUT | `/api/unique-songs/:id` | Update unique song |
+| DELETE | `/api/unique-songs/:id` | Delete unique song |
 
 ## License
 
